@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de Clientes - Lexxa Bagno</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS para leitura do Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Banco de dados pré-carregado em JS -->
+    <script src="database_clientes.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 font-sans relative">
+
+    <!-- Notificação Toast para feedback de Cópia -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-sm px-4 py-3 rounded-xl shadow-lg transition-all duration-300 opacity-0 pointer-events-none z-50 flex items-center gap-2">
+        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span>Dados do cliente copiados!</span>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        
+        <!-- Cabeçalho -->
+        <div class="mb-6 bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-3 mb-1">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
+                    <span class="text-xs font-semibold tracking-wider uppercase text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">
+                        Lexxa Bagno • Gestão de Vendas
+                    </span>
+                </div>
+                <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+                    Consulta Integrada de Clientes
+                </h1>
+                <p class="text-slate-500 text-sm mt-1 max-w-2xl">
+                    Painel de busca rápida para localização de carteira de clientes, razões sociais, CNPJ/CPF e representantes comerciais.
+                </p>
+            </div>
+            
+            <div class="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Base de Dados Conectada
+            </div>
+        </div>
+
+        <!-- Barra de Busca Global e Filtros -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 space-y-4">
+            <div>
+                <label for="globalSearch" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    Busca Rápida (Cliente, CNPJ, Vendedor, Endereço, Cidade ou E-mail)
+                </label>
+                <div class="relative">
+                    <input type="text" id="globalSearch" placeholder="Digite para pesquisar em tempo real..." class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-10 pr-4 py-3 text-base focus:ring-2 focus:ring-blue-500 focus:outline-none shadow-sm">
+                    <svg class="w-5 h-5 text-slate-400 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Filtros Específicos -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+                <div>
+                    <label for="filterUF" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Estado (UF)</label>
+                    <select id="filterUF" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option value="">Todos os Estados</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="filterVendedor" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Vendedor / Representante</label>
+                    <select id="filterVendedor" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        <option value="">Todos os Vendedores</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="filterCidade" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Cidade</label>
+                    <input type="text" id="filterCidade" placeholder="Filtrar cidade..." class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de Status -->
+        <div class="flex items-center justify-between mb-4 px-2">
+            <span id="counter" class="text-sm font-medium text-slate-600">Aguardando dados...</span>
+            <button id="btnClear" class="text-xs text-blue-600 hover:text-blue-800 font-semibold underline">Limpar Filtros</button>
+        </div>
+
+        <!-- Tabela de Clientes -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="overflow-x-auto max-h-[600px]">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 sticky top-0 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500 z-10">
+                        <tr>
+                            <th class="p-4">Cliente / CNPJ</th>
+                            <th class="p-4">Cidade / UF</th>
+                            <th class="p-4">Vendedor</th>
+                            <th class="p-4">Contato</th>
+                            <th class="p-4 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100 text-sm text-slate-700">
+                        <tr>
+                            <td colspan="5" class="text-center py-12 text-slate-400">Carregando banco de dados de clientes...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal de Detalhes do Cliente -->
+    <div id="clientModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 relative">
+            <button id="closeModal" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = [];
+        let currentFilteredData = [];
+
+        // Mapeamentos Padrão das colunas do Cliente
+        const COL_NOME = 'Nome';
+        const COL_DOC = 'CPF/CNPJ';
+        const COL_END = 'Endereço';
+        const COL_CIDADE = 'Cidade';
+        const COL_UF = 'UF';
+        const COL_CEP = 'CEP';
+        const COL_TEL = 'Telefone';
+        const COL_EMAIL = 'E-mail (NF-e)';
+
+        // Tabela de apoio com os dados cadastrais dos Representantes (Fallback)
+        const VENDEDORES_DB = {
+            "CAON REPRESENTACAO": { "doc": "03.688.291/0001-40", "tel": "(14)98112-2233" },
+            "GILBERTO BEREZUSKY": { "doc": "000.000.000-00", "tel": "027-99780-3347" },
+            "NESPOLO REPRESENTANTE DE MATERIAIS DE CONSTRUCAO LTDA": { "doc": "66.685.364/0001-60", "tel": "(54) 3310-3325" },
+            "MEGA REPRESENTAÇÕES": { "doc": "37.842.127/0001-68", "tel": "062-3259-9474" },
+            "ORLI LUDTKE": { "doc": "537.480.930-04", "tel": "" },
+            "MAURICIO BERTON REPRESENTAÇÕES COMERCIAIS": { "doc": "610.079.869-72", "tel": "(41) 99995-6934" },
+            "MAGNAGO REPRESENTAÇÕES LTDA": { "doc": "28.055.269/0001-94", "tel": "55-99165-5986" },
+            "M.G MENDES REPRESENTAÇOES , CONSULTORIA , MARKETING E TREINAMENTOS": { "doc": "34.819.593/0001-34", "tel": "(65) 98141-6560" },
+            "ORION REPRESENTAÇÕES COMERCIAIS LTDA": { "doc": "12.997.047/0001-50", "tel": "6599180817" },
+            "FABIANA BRAGA FALCÃO": { "doc": "779.933.900-44", "tel": "51 984450661" },
+            "ROQUE ALBERTO GERHARDT": { "doc": "04.988.843/0001-07", "tel": "051-99919-4640" },
+            "LUAN SIMOES BRIGATO": { "doc": "32.100.609/0001-29", "tel": "" },
+            "MONDARDO REPRESENTAÇOES": { "doc": "24.012.075/0001-50", "tel": "019-98234-8308" },
+            "MONDARDO REPRESENTACOES LTDA": { "doc": "24.012.075/0001-50", "tel": "" },
+            "PIVOTTO & NARDINO LTDA": { "doc": "05.471.093/0001-56", "tel": "045 9972-1723" },
+            "S MINAS REPRESENTAÇÕES COMERCIAIS": { "doc": "42.239.784/0001-55", "tel": "35 984056075" },
+            "VERDES VALES REPRESENTACOES COMERCIAIS LTDA": { "doc": "01.276.357/0001-60", "tel": "051-99827-0450" },
+            "ROYALLE REPRESENTAÇÕES LTDA": { "doc": "94.987.872/0001-39", "tel": "054-99971-4289" },
+            "LACERDA FARIAS REPRESENTACOES LTDA": { "doc": "17.731.015/0001-22", "tel": "85 986755092" },
+            "M. A. Z. REPRESENTACOES LTDA": { "doc": "13.258.183/0001-91", "tel": "(17) 3215-0640" },
+            "JME REPRESENTAÇÕES COMERCIAIS LTDA": { "doc": "07.233.560/0001-35", "tel": "43 3339 0965" },
+            "E & E GESTÃO DE NEGÓCIOS E SERVIÇOS LTDA": { "doc": "30.066.256/0001-62", "tel": "047-99786-7900" },
+            "JDB REPRESENTAÇÕES ME": { "doc": "65.117.421/0001-42", "tel": "48 9924-5255" },
+            "MENDES & NUNES REPRESENTAÇÕES LTDA": { "doc": "12.713.856/0001-93", "tel": "048-99136-5944" },
+            "GALARDINOWAIT REPRESENTAÇÕES": { "doc": "03.786.776/0001-77", "tel": "016-98138-4640" },
+            "LAZULI PARCERIAS LTDA": { "doc": "58.852.067/0001-34", "tel": "21 981211004" },
+            "M. P. GERMANO & CIA LTDA": { "doc": "92.364.934/0001-20", "tel": "051-98406-9861" },
+            "ALEXANDRE FRANCA TAVARES & CIA LTDA": { "doc": "05.196.855/0001-53", "tel": "12 991240164" },
+            "CAMILA FERRARI REPRESENTACOES LTDA": { "doc": "35.706.628/0001-91", "tel": "11998760028" },
+            "LEIA SUNAMITA DOS SANTOS": { "doc": "19.666.752/0001-14", "tel": "11 98703 8762" },
+            "RFEF REPRESENTACOES LTDA": { "doc": "72.896.459/0001-26", "tel": "116918-3673" },
+            "FOGACA REPRESENTACOES COMERCIAIS LTDA": { "doc": "24.911.688/0001-20", "tel": "(14) 9669-4250" },
+            "COMINT BRASIL CORRETORA DE MERCADORIAS, IMPORTACAO E EXPORTACAO LTDA.": { "doc": "09.465.723/0001-30", "tel": "053-3028-0807" },
+            "CAPALUGUI REPRESENTAÇÕES COM LTDA": { "doc": "09.025.765/0001-50", "tel": "48 9923-2324" },
+            "UNIAO JL REPRESENTACAO COMERCIAL LTDA": { "doc": "31.152.742/0001-66", "tel": "47 991142251" },
+            "DORSCH REPRESENTAÇÕES LTDA": { "doc": "07.498.768/0001-86", "tel": "31 84558988" },
+            "DAJOL REPRESENTAÇÕES LTDA": { "doc": "42.046.045/0001-47", "tel": "77 98829-6257" },
+            "DM PITTA REPRESENTACAO COMERCIAL EIRELI": { "doc": "29.761.928/0001-70", "tel": "021-99729-0585" },
+            "MMR REPRESENTAÇÕES LTDA": { "doc": "19.367.050/0001-30", "tel": "71 99772436" },
+            "LIZI & JORGE REPRESENTACOES COMERCIAIS LTDA": { "doc": "42.064.690/0001-92", "tel": "14991268969" },
+            "MGK COMERCIO E REPRESENTACOES LTDA": { "doc": "05.669.444/0001-38", "tel": "(81) 9608-8666" },
+            "HANNA CRISTINA SILVA SOUZA CARVALHO": { "doc": "44.442.149/0001-04", "tel": "94-91467514" },
+            "CASTELLAMARE REP.": { "doc": "17.449.798/0001-56", "tel": "054-99950-7320" },
+            "SBS REPRESENTAÇÕESLTDA": { "doc": "02.855.842/0001-50", "tel": "84 999818915" },
+            "J MENDES COMERCIO DE PISOS E AZULEJOS LTDA": { "doc": "58.884.552/0001-90", "tel": "19 992572353" },
+            "PANTANAL REPRESENTACAO COMERCIAL LTDA": { "doc": "22.027.572/0001-05", "tel": "067-99606-1082" },
+            "C.P CORREA SERVIÇOS LTDA": { "doc": "49.456.956/0001-91", "tel": "22 99856 6918" },
+            "M.A DOS SANTOS LAULETTA REPRESENTAÇAO": { "doc": "46.833.668/0001-10", "tel": "21 994007761" },
+            "L & M REPRESENTACOES COMERCIAIS LTDA": { "doc": "31.052.946/0001-25", "tel": "041-98412-7777" },
+            "WIGUS REPRESENTAÇÕES LTDA": { "doc": "00.172.077/0001-49", "tel": "065-9994-9302" },
+            "FAGNER FIALHO ABRANTES - ME": { "doc": "29.094.151/0001-38", "tel": "(31 - 98788-0323" },
+            "ROGERIO LONGHI COITINHO": { "doc": "22.106.541/0001-31", "tel": "051-99705-9572" },
+            "AMARAL RODRIGUES LTDA - SAR - SILVIANI": { "doc": "62.227.873/0001-99", "tel": "98 8116-3353" },
+            "CARVALHO & SALES REPRESENTAÇÕES LTDA": { "doc": "13.219.444/0001-64", "tel": "(69)984050282" },
+            "MJR REPRESENTAÇOES LTDA": { "doc": "54.040.300/0001-23", "tel": "(69)99975-2008/(69)99979-2009" },
+            "M.V. SANTANA REPRESENTAÇÕES LTDA": { "doc": "06.538.178/0001-77", "tel": "012-97406-5606" },
+            "CARLOS EDUARDO DIENSTMANN": { "doc": "525.929.440-87", "tel": "51999682237" },
+            "E ALVES CARREIRO LTDA": { "doc": "03.653.140/0001-57", "tel": "098-99908-0740" },
+            "SILVAR REPRESENTAÇÕES LTDA": { "doc": "63.064.281/0001-66", "tel": "(17)3016-9015" },
+            "RAQUEL PEIXOTO COSTA BRAZÃO": { "doc": "219.959.378-94", "tel": "11 96586-1880" },
+            "GUCEL REPRESENTACOES COMERCIAIS LTDA - ME": { "doc": "01.246.216/0001-02", "tel": "(11) 2216-0064" },
+            "ANDRE SEMERDJIAN": { "doc": "450.180.438-65", "tel": "1145214626" },
+            "KADOSH REPRESENTACOES LTDA": { "doc": "06.293.347/0001-56", "tel": "(77) 99139-9000" },
+            "MATOS CAIRES REPRESENTAÇÕES LTDA": { "doc": "15.164.274/0001-93", "tel": "077-99119-0646" }
+        };
+
+        // Função flexível para ler propriedades
+        function getClientProp(row, possibleKeys) {
+            if (!row) return null;
+            for (let key of possibleKeys) {
+                if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
+                    return String(row[key]).trim();
+                }
+            }
+            return null;
+        }
+
+        // Recupera dados do Vendedor com Fallback automático pro VENDEDORES_DB
+        function getVendedorData(row) {
+            const nome = getClientProp(row, ['Vendedor:', 'Vendedor', 'VENDEDOR']) || 'Sem Vendedor';
+            
+            let doc = getClientProp(row, ['CPF/CNPJ Vendedor:', 'CPF/CNPJ Vendedor', 'CNPJ Vendedor', 'CPF Vendedor']);
+            let tel = getClientProp(row, ['Telefone Vendedor:', 'Telefone Vendedor', 'Tel Vendedor', 'Celular Vendedor']);
+
+            // Se não encontrou no próprio registro do cliente, tenta buscar no VENDEDORES_DB
+            if ((!doc || !tel) && VENDEDORES_DB[nome]) {
+                if (!doc) doc = VENDEDORES_DB[nome].doc;
+                if (!tel || tel === '0') tel = VENDEDORES_DB[nome].tel;
+            }
+
+            return {
+                nome: nome,
+                doc: (doc && doc !== '0') ? doc : null,
+                tel: (tel && tel !== '0') ? tel : null
+            };
+        }
+
+        function normalizeStr(str) {
+            return String(str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            fetch('Cadastro de Clientes.xlsx')
+                .then(res => {
+                    if (!res.ok) throw new Error("Não foi possível carregar o Excel");
+                    return res.arrayBuffer();
+                })
+                .then(buffer => processWorkbook(buffer))
+                .catch(() => {
+                    if (typeof CLIENTES_DB !== 'undefined' && Array.isArray(CLIENTES_DB) && CLIENTES_DB.length > 0) {
+                        rawData = CLIENTES_DB;
+                        initApp();
+                    } else {
+                        document.getElementById('tableBody').innerHTML = `
+                            <tr>
+                                <td colspan="5" class="text-center py-12 text-slate-500">
+                                    Banco de dados de clientes não encontrado.
+                                </td>
+                            </tr>`;
+                    }
+                });
+        });
+
+        function processWorkbook(buffer) {
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            const firstSheet = workbook.SheetNames[0];
+            rawData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
+            initApp();
+        }
+
+        function initApp() {
+            populateDropdowns();
+            renderTable(rawData);
+            setupEvents();
+        }
+
+        function populateDropdowns() {
+            const ufs = [...new Set(rawData.map(i => i[COL_UF]).filter(Boolean))].sort();
+            const vendedores = [...new Set(rawData.map(i => getClientProp(i, ['Vendedor:', 'Vendedor', 'VENDEDOR'])).filter(Boolean))].sort();
+
+            document.getElementById('filterUF').innerHTML = '<option value="">Todos os Estados</option>' + 
+                ufs.map(uf => `<option value="${uf}">${uf}</option>`).join('');
+
+            document.getElementById('filterVendedor').innerHTML = '<option value="">Todos os Vendedores</option>' + 
+                vendedores.map(v => `<option value="${v}">${v}</option>`).join('');
+        }
+
+        function filterData() {
+            const globalQuery = normalizeStr(document.getElementById('globalSearch').value);
+            const uf = normalizeStr(document.getElementById('filterUF').value);
+            const vendedor = normalizeStr(document.getElementById('filterVendedor').value);
+            const cidade = normalizeStr(document.getElementById('filterCidade').value);
+
+            const filtered = rawData.filter(row => {
+                const rowNome = normalizeStr(row[COL_NOME]);
+                const rowDoc = normalizeStr(row[COL_DOC]);
+                const rowCidade = normalizeStr(row[COL_CIDADE]);
+                const rowEnd = normalizeStr(row[COL_END]);
+                const rowEmail = normalizeStr(row[COL_EMAIL]);
+                const rowUF = normalizeStr(row[COL_UF]);
+                
+                const vendInfo = getVendedorData(row);
+                const rowVendedor = normalizeStr(vendInfo.nome);
+                const rowVendedorDoc = normalizeStr(vendInfo.doc);
+                const rowVendedorTel = normalizeStr(vendInfo.tel);
+
+                const matchesGlobal = !globalQuery || 
+                    rowNome.includes(globalQuery) || 
+                    rowDoc.includes(globalQuery) || 
+                    rowCidade.includes(globalQuery) || 
+                    rowEnd.includes(globalQuery) || 
+                    rowEmail.includes(globalQuery) ||
+                    rowVendedor.includes(globalQuery) ||
+                    rowVendedorDoc.includes(globalQuery) ||
+                    rowVendedorTel.includes(globalQuery);
+
+                const matchesUF = !uf || rowUF === uf;
+                const matchesVendedor = !vendedor || rowVendedor === vendedor;
+                const matchesCidade = !cidade || rowCidade.includes(cidade);
+
+                return matchesGlobal && matchesUF && matchesVendedor && matchesCidade;
+            });
+
+            renderTable(filtered);
+        }
+
+        function renderTable(data) {
+            currentFilteredData = data;
+            const tbody = document.getElementById('tableBody');
+            const counter = document.getElementById('counter');
+
+            counter.textContent = `Exibindo ${data.length.toLocaleString('pt-BR')} cliente(s)`;
+
+            if (data.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-12 text-slate-400">
+                            Nenhum cliente encontrado.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            const limit = 200;
+            const items = data.slice(0, limit);
+
+            tbody.innerHTML = items.map((row, idx) => {
+                const vendInfo = getVendedorData(row);
+
+                const telClean = String(row[COL_TEL] || '').replace(/\D/g, '');
+                const hasWhats = telClean.length >= 10;
+                const whatsUrl = hasWhats ? `https://wa.me/55${telClean}` : '#';
+
+                return `
+                <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="openModal(${idx})">
+                    <td class="p-4">
+                        <div class="font-bold text-slate-900">${row[COL_NOME] || '-'}</div>
+                        <div class="text-xs text-slate-400 font-mono mt-0.5">${row[COL_DOC] || '-'}</div>
+                    </td>
+                    <td class="p-4">
+                        <div class="font-medium text-slate-800">${row[COL_CIDADE] || '-'}</div>
+                        <span class="inline-block bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded font-semibold">${row[COL_UF] || '-'}</span>
+                    </td>
+                    <td class="p-4 text-xs">
+                        <div class="font-semibold text-blue-700">${vendInfo.nome}</div>
+                        ${vendInfo.tel ? `<div class="text-slate-400 text-[11px] mt-0.5">${vendInfo.tel}</div>` : ''}
+                    </td>
+                    <td class="p-4 text-xs">
+                        <div>${row[COL_TEL] || '-'}</div>
+                        <div class="text-slate-400 truncate max-w-[180px]">${row[COL_EMAIL] || '-'}</div>
+                    </td>
+                    <td class="p-4 text-center" onclick="event.stopPropagation()">
+                        <div class="flex items-center justify-center gap-2">
+                            ${hasWhats ? `
+                                <a href="${whatsUrl}" target="_blank" title="Abrir WhatsApp" class="p-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
+                                </a>
+                            ` : ''}
+                            <button onclick="copyClientInfo(${idx})" title="Copiar Dados" class="p-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `}).join('');
+
+            if (data.length > limit) {
+                tbody.innerHTML += `
+                    <tr>
+                        <td colspan="5" class="text-center py-3 bg-amber-50 text-amber-700 text-xs font-medium">
+                            Exibindo os primeiros 200 resultados de ${data.length.toLocaleString('pt-BR')}. Refine os filtros para localizar clientes específicos.
+                        </td>
+                    </tr>`;
+            }
+        }
+
+        function openModal(idx) {
+            const row = currentFilteredData[idx];
+            if (!row) return;
+
+            const vendInfo = getVendedorData(row);
+
+            const modal = document.getElementById('clientModal');
+            const content = document.getElementById('modalContent');
+
+            content.innerHTML = `
+                <h3 class="text-xl font-bold text-slate-900 mb-1">${row[COL_NOME] || 'Sem Nome'}</h3>
+                <p class="text-xs text-slate-400 font-mono mb-6">${row[COL_DOC] || '-'}</p>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    
+                    <!-- BLOCO DO VENDEDOR -->
+                    <div class="bg-slate-50 p-4 rounded-xl sm:col-span-2 border border-slate-100 flex flex-col gap-2">
+                        <span class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Vendedor / Representante</span>
+                        
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <span class="font-bold text-blue-700 text-lg">${vendInfo.nome}</span>
+                            
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-xs font-mono bg-white px-2.5 py-1 rounded-md border border-slate-200 text-slate-600 shadow-sm">
+                                    <strong class="text-slate-400 font-sans">CPF/CNPJ:</strong> ${vendInfo.doc || 'Não informado'}
+                                </span>
+                                
+                                <span class="text-xs bg-white px-2.5 py-1 rounded-md border border-slate-200 text-slate-600 shadow-sm">
+                                    <strong class="text-slate-400">Tel:</strong> ${vendInfo.tel || 'Não informado'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DEMAIS CAMPOS DO CLIENTE -->
+                    <div class="bg-slate-50 p-3 rounded-xl">
+                        <span class="block text-xs font-semibold text-slate-400 uppercase">Localização</span>
+                        <span class="font-medium text-slate-800">${row[COL_CIDADE] || '-'} / ${row[COL_UF] || '-'}</span>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded-xl">
+                        <span class="block text-xs font-semibold text-slate-400 uppercase">CEP</span>
+                        <span class="text-slate-800 font-mono">${row[COL_CEP] || '-'}</span>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded-xl sm:col-span-2">
+                        <span class="block text-xs font-semibold text-slate-400 uppercase">Endereço Completo</span>
+                        <span class="text-slate-800">${row[COL_END] || '-'}</span>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded-xl">
+                        <span class="block text-xs font-semibold text-slate-400 uppercase">Telefone Cliente</span>
+                        <span class="text-slate-800">${row[COL_TEL] || '-'}</span>
+                    </div>
+
+                    <div class="bg-slate-50 p-3 rounded-xl">
+                        <span class="block text-xs font-semibold text-slate-400 uppercase">E-mail (NF-e)</span>
+                        <span class="text-slate-800 break-all">${row[COL_EMAIL] || '-'}</span>
+                    </div>
+                </div>
+            `;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('clientModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function copyClientInfo(idx) {
+            const row = currentFilteredData[idx];
+            if (!row) return;
+
+            const vendInfo = getVendedorData(row);
+
+            const text = `Cliente: ${row[COL_NOME] || '-'}
+CPF/CNPJ: ${row[COL_DOC] || '-'}
+Endereço: ${row[COL_END] || '-'} - ${row[COL_CIDADE] || '-'}/${row[COL_UF] || '-'} (CEP: ${row[COL_CEP] || '-'})
+Telefone: ${row[COL_TEL] || '-'}
+E-mail: ${row[COL_EMAIL] || '-'}
+Vendedor: ${vendInfo.nome}
+CPF/CNPJ Vendedor: ${vendInfo.doc || 'Não informado'}
+Tel. Vendedor: ${vendInfo.tel || 'Não informado'}`.trim();
+
+            navigator.clipboard.writeText(text).then(() => {
+                showToast();
+            }).catch(err => {
+                console.error("Erro ao copiar: ", err);
+            });
+        }
+
+        function showToast() {
+            const toast = document.getElementById('toast');
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            toast.classList.add('opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 2500);
+        }
+
+        function setupEvents() {
+            document.getElementById('globalSearch').addEventListener('input', filterData);
+            document.getElementById('filterUF').addEventListener('change', filterData);
+            document.getElementById('filterVendedor').addEventListener('change', filterData);
+            document.getElementById('filterCidade').addEventListener('input', filterData);
+
+            document.getElementById('btnClear').addEventListener('click', () => {
+                document.getElementById('globalSearch').value = '';
+                document.getElementById('filterUF').value = '';
+                document.getElementById('filterVendedor').value = '';
+                document.getElementById('filterCidade').value = '';
+                renderTable(rawData);
+            });
+
+            document.getElementById('closeModal').addEventListener('click', closeModal);
+
+            document.getElementById('clientModal').addEventListener('click', (e) => {
+                if (e.target.id === 'clientModal') closeModal();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeModal();
+            });
+        }
+    </script>
+</body>
+</html>
