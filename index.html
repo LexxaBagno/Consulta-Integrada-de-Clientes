@@ -14,14 +14,13 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBNtNGpi8RfQ5Tj3rBWF2fYUMwxIvi0xTE",
-            authDomain: "consulta-integrada-de-clientes.firebaseapp.com",
-            projectId: "consulta-integrada-de-clientes",
-            storageBucket: "consulta-integrada-de-clientes.firebasestorage.app",
-            messagingSenderId: "646317780637",
-            appId: "1:646317780637:web:d25482a2afa36c95182e74"
-        };
+        apiKey: "AIzaSy...",
+  authDomain: "lexxa-clientes.firebaseapp.com",
+  projectId: "lexxa-clientes",
+  storageBucket: "lexxa-clientes.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abc123def456"
+};
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -101,7 +100,16 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                    <div>
+                        <label for="filterStatus" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Status</label>
+                        <select id="filterStatus" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <option value="">Todos (Ativos e Inativos)</option>
+                            <option value="ATIVO">Somente Ativos</option>
+                            <option value="INATIVO">Somente Inativos</option>
+                        </select>
+                    </div>
+
                     <div>
                         <label for="filterUF" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Estado (UF)</label>
                         <select id="filterUF" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
@@ -133,7 +141,7 @@
                     <table class="w-full text-left border-collapse">
                         <thead class="bg-slate-50 sticky top-0 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500 z-10">
                             <tr>
-                                <th class="p-4">Cliente / CNPJ</th>
+                                <th class="p-4">Status / Cliente / CNPJ</th>
                                 <th class="p-4">Cidade / UF</th>
                                 <th class="p-4">Vendedor</th>
                                 <th class="p-4">Contato</th>
@@ -162,6 +170,14 @@
                     <div>
                         <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Informações do Cliente</h3>
                         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Status *</label>
+                                <select id="novoStatus" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                    <option value="ATIVO">ATIVO</option>
+                                    <option value="INATIVO">INATIVO</option>
+                                </select>
+                            </div>
+
                             <div class="sm:col-span-2">
                                 <label class="block text-xs font-semibold text-slate-600 mb-1">Nome / Razão Social *</label>
                                 <input type="text" id="novoNome" required placeholder="Ex: MARCOS FERNANDO LUZ LTDA" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
@@ -260,16 +276,21 @@
             return '';
         }
 
+        function getStatus(row) {
+            const val = getVal(row, ['Ativo', 'ativo', 'Status', 'status']);
+            return String(val || 'ATIVO').toUpperCase().trim();
+        }
+
         function getVendedor(row) {
-            return getVal(row, ['Vendedor::', 'Vendedor:', 'Vendedor']);
+            return getVal(row, ['Vendedor:', 'Vendedor::', 'Vendedor', 'vendedor']);
         }
 
         function getVendedorDoc(row) {
-            return getVal(row, ['CPF/CNPJ Vendedor::', 'CPF/CNPJ Vendedor:', 'CPF/CNPJ Vendedor']);
+            return getVal(row, ['CPF/CNPJ Vendedor:', 'CPF/CNPJ Vendedor::', 'CPF/CNPJ Vendedor']);
         }
 
         function getVendedorTel(row) {
-            return getVal(row, ['Telefone Vendedor::', 'Telefone Vendedor:', 'Telefone Vendedor']);
+            return getVal(row, ['Telefone Vendedor:', 'Telefone Vendedor::', 'Telefone Vendedor']);
         }
 
         function normalizeStr(str) {
@@ -314,11 +335,13 @@
 
         function filterData() {
             const globalQuery = normalizeStr(document.getElementById('globalSearch').value);
+            const statusFilter = document.getElementById('filterStatus').value;
             const uf = normalizeStr(document.getElementById('filterUF').value);
             const vendedor = normalizeStr(document.getElementById('filterVendedor').value);
             const cidade = normalizeStr(document.getElementById('filterCidade').value);
 
             const filtered = window.rawData.filter(row => {
+                const rowStatus = getStatus(row);
                 const rowNome = normalizeStr(getVal(row, ['Nome', 'nome']));
                 const rowDoc = normalizeStr(getVal(row, ['CPF/CNPJ', 'cpf_cnpj', 'cpf', 'cnpj']));
                 const rowCidade = normalizeStr(getVal(row, ['Cidade', 'cidade']));
@@ -335,11 +358,12 @@
                     rowEmail.includes(globalQuery) ||
                     rowVendedor.includes(globalQuery);
 
+                const matchesStatus = !statusFilter || rowStatus === statusFilter;
                 const matchesUF = !uf || rowUF === uf;
                 const matchesVendedor = !vendedor || rowVendedor === vendedor;
                 const matchesCidade = !cidade || rowCidade.includes(cidade);
 
-                return matchesGlobal && matchesUF && matchesVendedor && matchesCidade;
+                return matchesGlobal && matchesStatus && matchesUF && matchesVendedor && matchesCidade;
             });
 
             renderTable(filtered);
@@ -360,6 +384,12 @@
             const items = data.slice(0, 200);
 
             tbody.innerHTML = items.map((row, idx) => {
+                const status = getStatus(row);
+                const isAtivo = status === 'ATIVO';
+                const statusTag = isAtivo 
+                    ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">ATIVO</span>`
+                    : `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">INATIVO</span>`;
+
                 const tel = getVal(row, ['Telefone', 'telefone', 'Tel']);
                 const telClean = String(tel || '').replace(/\D/g, '');
                 const hasWhats = telClean.length >= 10;
@@ -369,8 +399,11 @@
                 return `
                 <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="openModal(${idx})">
                     <td class="p-4">
-                        <div class="font-bold text-slate-900">${getVal(row, ['Nome', 'nome']) || '-'}</div>
-                        <div class="text-xs text-slate-400 font-mono mt-0.5">${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}</div>
+                        <div class="flex items-center gap-2 mb-1">
+                            ${statusTag}
+                            <span class="font-bold text-slate-900">${getVal(row, ['Nome', 'nome']) || '-'}</span>
+                        </div>
+                        <div class="text-xs text-slate-400 font-mono">${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}</div>
                     </td>
                     <td class="p-4">
                         <div class="font-medium text-slate-800">${getVal(row, ['Cidade', 'cidade']) || '-'}</div>
@@ -392,7 +425,7 @@
                                 </a>
                             ` : ''}
                             <button onclick="copyClientInfo(${idx})" title="Copiar Dados" class="p-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2 2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                             </button>
                         </div>
                     </td>
@@ -407,6 +440,7 @@
             btn.textContent = "Salvando na Nuvem...";
 
             const novoObj = {
+                "Ativo": document.getElementById('novoStatus').value,
                 "Nome": document.getElementById('novoNome').value.trim(),
                 "CPF/CNPJ": document.getElementById('novoDoc').value.trim(),
                 "Endereço": document.getElementById('novoEnd').value.trim(),
@@ -415,9 +449,9 @@
                 "UF": document.getElementById('novoUF').value.trim().toUpperCase(),
                 "Telefone": document.getElementById('novoTel').value.trim(),
                 "E-mail (NF-e)": document.getElementById('novoEmail').value.trim(),
-                "Vendedor::": document.getElementById('novoVendedor').value.trim(),
-                "CPF/CNPJ Vendedor::": document.getElementById('novoVendedorDoc').value.trim(),
-                "Telefone Vendedor::": document.getElementById('novoVendedorTel').value.trim(),
+                "Vendedor:": document.getElementById('novoVendedor').value.trim(),
+                "CPF/CNPJ Vendedor:": document.getElementById('novoVendedorDoc').value.trim(),
+                "Telefone Vendedor:": document.getElementById('novoVendedorTel').value.trim(),
                 "criadoEm": new Date().toISOString()
             };
 
@@ -449,9 +483,15 @@
 
             const modal = document.getElementById('clientModal');
             const content = document.getElementById('modalContent');
+            const status = getStatus(row);
 
             content.innerHTML = `
-                <h3 class="text-xl font-bold text-slate-900 mb-1">${getVal(row, ['Nome', 'nome']) || 'Sem Nome'}</h3>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="${status === 'ATIVO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'} text-xs font-bold px-2.5 py-1 rounded">
+                        ${status}
+                    </span>
+                    <h3 class="text-xl font-bold text-slate-900">${getVal(row, ['Nome', 'nome']) || 'Sem Nome'}</h3>
+                </div>
                 <p class="text-xs text-slate-400 font-mono mb-6">${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}</p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
@@ -509,7 +549,8 @@
             const row = currentFilteredData[idx];
             if (!row) return;
 
-            const text = `Cliente: ${getVal(row, ['Nome', 'nome']) || '-'}
+            const text = `Status: ${getStatus(row)}
+Cliente: ${getVal(row, ['Nome', 'nome']) || '-'}
 CPF/CNPJ: ${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}
 Endereço: ${getVal(row, ['Endereço', 'Endereco']) || '-'} - ${getVal(row, ['Cidade', 'cidade']) || '-'}/${getVal(row, ['UF', 'uf']) || '-'} (CEP: ${getVal(row, ['CEP', 'cep']) || '-'})
 Telefone: ${getVal(row, ['Telefone', 'telefone']) || '-'}
@@ -535,12 +576,14 @@ Tel. Vendedor: ${getVendedorTel(row) || '-'}`.trim();
 
         function setupEvents() {
             document.getElementById('globalSearch').addEventListener('input', filterData);
+            document.getElementById('filterStatus').addEventListener('change', filterData);
             document.getElementById('filterUF').addEventListener('change', filterData);
             document.getElementById('filterVendedor').addEventListener('change', filterData);
             document.getElementById('filterCidade').addEventListener('input', filterData);
 
             document.getElementById('btnClear').addEventListener('click', () => {
                 document.getElementById('globalSearch').value = '';
+                document.getElementById('filterStatus').value = '';
                 document.getElementById('filterUF').value = '';
                 document.getElementById('filterVendedor').value = '';
                 document.getElementById('filterCidade').value = '';
