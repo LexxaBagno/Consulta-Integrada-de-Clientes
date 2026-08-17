@@ -14,13 +14,14 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, writeBatch, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        apiKey: "AIzaSy...",
-  authDomain: "lexxa-clientes.firebaseapp.com",
-  projectId: "lexxa-clientes",
-  storageBucket: "lexxa-clientes.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abc123def456"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyBNtNGpi8RfQ5Tj3rBWF2fYUMwxIvi0xTE",
+            authDomain: "consulta-integrada-de-clientes.firebaseapp.com",
+            projectId: "consulta-integrada-de-clientes",
+            storageBucket: "consulta-integrada-de-clientes.firebasestorage.app",
+            messagingSenderId: "646317780637",
+            appId: "1:646317780637:web:d25482a2afa36c95182e74"
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -42,6 +43,7 @@
             window.initApp();
         }, (error) => {
             console.error("Erro ao sincronizar com Firebase:", error);
+            document.getElementById('counter').textContent = "Erro na conexão com o banco de dados.";
         });
     </script>
 </head>
@@ -69,13 +71,6 @@
             </div>
             
             <div class="flex flex-wrap gap-2">
-                <!-- Botão para importar planilha antiga -->
-                <label class="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                    Importar Planilha Antiga
-                    <input type="file" id="excelImporter" accept=".xlsx, .xls" class="hidden" onchange="importarExcelParaFirebase(event)">
-                </label>
-
                 <button onclick="exportToExcel()" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                     Exportar Excel
@@ -216,7 +211,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                             <div>
                                 <label class="block text-xs font-semibold text-slate-600 mb-1">Nome do Vendedor *</label>
-                                <input type="text" id="novoVendedor" required placeholder="Ex: CAON REPRESENTACAO" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                <input type="text" id="novoVendedor" required placeholder="Ex: FABIANA BRAGA FALCÃO" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                             </div>
 
                             <div>
@@ -258,14 +253,24 @@
         window.rawData = [];
         let currentFilteredData = [];
 
-        const COL_NOME = 'Nome';
-        const COL_DOC = 'CPF/CNPJ';
-        const COL_END = 'Endereço';
-        const COL_CIDADE = 'Cidade';
-        const COL_UF = 'UF';
-        const COL_CEP = 'CEP';
-        const COL_TEL = 'Telefone';
-        const COL_EMAIL = 'E-mail (NF-e)';
+        function getVal(row, keys) {
+            for (let k of keys) {
+                if (row[k] !== undefined && row[k] !== null) return row[k];
+            }
+            return '';
+        }
+
+        function getVendedor(row) {
+            return getVal(row, ['Vendedor::', 'Vendedor:', 'Vendedor']);
+        }
+
+        function getVendedorDoc(row) {
+            return getVal(row, ['CPF/CNPJ Vendedor::', 'CPF/CNPJ Vendedor:', 'CPF/CNPJ Vendedor']);
+        }
+
+        function getVendedorTel(row) {
+            return getVal(row, ['Telefone Vendedor::', 'Telefone Vendedor:', 'Telefone Vendedor']);
+        }
 
         function normalizeStr(str) {
             return String(str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
@@ -297,8 +302,8 @@
         };
 
         function populateDropdowns() {
-            const ufs = [...new Set(window.rawData.map(i => i[COL_UF]).filter(Boolean))].sort();
-            const vendedores = [...new Set(window.rawData.map(i => i['Vendedor:'] || i['Vendedor']).filter(Boolean))].sort();
+            const ufs = [...new Set(window.rawData.map(i => getVal(i, ['UF', 'uf'])).filter(Boolean))].sort();
+            const vendedores = [...new Set(window.rawData.map(i => getVendedor(i)).filter(Boolean))].sort();
 
             document.getElementById('filterUF').innerHTML = '<option value="">Todos os Estados</option>' + 
                 ufs.map(uf => `<option value="${uf}">${uf}</option>`).join('');
@@ -314,13 +319,13 @@
             const cidade = normalizeStr(document.getElementById('filterCidade').value);
 
             const filtered = window.rawData.filter(row => {
-                const rowNome = normalizeStr(row[COL_NOME]);
-                const rowDoc = normalizeStr(row[COL_DOC]);
-                const rowCidade = normalizeStr(row[COL_CIDADE]);
-                const rowEnd = normalizeStr(row[COL_END]);
-                const rowEmail = normalizeStr(row[COL_EMAIL]);
-                const rowUF = normalizeStr(row[COL_UF]);
-                const rowVendedor = normalizeStr(row['Vendedor:'] || row['Vendedor']);
+                const rowNome = normalizeStr(getVal(row, ['Nome', 'nome']));
+                const rowDoc = normalizeStr(getVal(row, ['CPF/CNPJ', 'cpf_cnpj', 'cpf', 'cnpj']));
+                const rowCidade = normalizeStr(getVal(row, ['Cidade', 'cidade']));
+                const rowEnd = normalizeStr(getVal(row, ['Endereço', 'Endereco', 'endereco']));
+                const rowEmail = normalizeStr(getVal(row, ['E-mail (NF-e)', 'Email', 'email']));
+                const rowUF = normalizeStr(getVal(row, ['UF', 'uf']));
+                const rowVendedor = normalizeStr(getVendedor(row));
 
                 const matchesGlobal = !globalQuery || 
                     rowNome.includes(globalQuery) || 
@@ -348,35 +353,36 @@
             counter.textContent = `Exibindo ${data.length.toLocaleString('pt-BR')} cliente(s)`;
 
             if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-slate-400">Nenhum cliente cadastrado no banco. Clique em "Importar Planilha Antiga" acima para carregar sua base.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-slate-400">Nenhum cliente encontrado.</td></tr>`;
                 return;
             }
 
             const items = data.slice(0, 200);
 
             tbody.innerHTML = items.map((row, idx) => {
-                const telClean = String(row[COL_TEL] || '').replace(/\D/g, '');
+                const tel = getVal(row, ['Telefone', 'telefone', 'Tel']);
+                const telClean = String(tel || '').replace(/\D/g, '');
                 const hasWhats = telClean.length >= 10;
-                const vNome = row['Vendedor:'] || row['Vendedor'] || 'Sem Vendedor';
-                const vTel = row['Telefone Vendedor:'] || row['Telefone Vendedor'] || '';
+                const vNome = getVendedor(row) || 'Sem Vendedor';
+                const vTel = getVendedorTel(row);
 
                 return `
                 <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="openModal(${idx})">
                     <td class="p-4">
-                        <div class="font-bold text-slate-900">${row[COL_NOME] || '-'}</div>
-                        <div class="text-xs text-slate-400 font-mono mt-0.5">${row[COL_DOC] || '-'}</div>
+                        <div class="font-bold text-slate-900">${getVal(row, ['Nome', 'nome']) || '-'}</div>
+                        <div class="text-xs text-slate-400 font-mono mt-0.5">${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}</div>
                     </td>
                     <td class="p-4">
-                        <div class="font-medium text-slate-800">${row[COL_CIDADE] || '-'}</div>
-                        <span class="inline-block bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded font-semibold">${row[COL_UF] || '-'}</span>
+                        <div class="font-medium text-slate-800">${getVal(row, ['Cidade', 'cidade']) || '-'}</div>
+                        <span class="inline-block bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded font-semibold">${getVal(row, ['UF', 'uf']) || '-'}</span>
                     </td>
                     <td class="p-4 text-xs">
                         <div class="font-semibold text-blue-700">${vNome}</div>
                         ${vTel ? `<div class="text-slate-400 text-[11px] mt-0.5">${vTel}</div>` : ''}
                     </td>
                     <td class="p-4 text-xs">
-                        <div>${row[COL_TEL] || '-'}</div>
-                        <div class="text-slate-400 truncate max-w-[180px]">${row[COL_EMAIL] || '-'}</div>
+                        <div>${tel || '-'}</div>
+                        <div class="text-slate-400 truncate max-w-[180px]">${getVal(row, ['E-mail (NF-e)', 'Email', 'email']) || '-'}</div>
                     </td>
                     <td class="p-4 text-center" onclick="event.stopPropagation()">
                         <div class="flex items-center justify-center gap-2">
@@ -394,60 +400,6 @@
             `}).join('');
         }
 
-        // FUNÇÃO PARA ENVIAR OS DADOS DA PLANILHA ANTIGA PARA O FIREBASE
-        async function importarExcelParaFirebase(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            showToast("Lendo arquivo Excel...");
-            const reader = new FileReader();
-
-            reader.onload = async function(event) {
-                try {
-                    const data = new Uint8Array(event.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheet = workbook.SheetNames[0];
-                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
-
-                    if (rows.length === 0) {
-                        alert("A planilha selecionada está vazia.");
-                        return;
-                    }
-
-                    showToast(`Subindo ${rows.length} clientes para a Nuvem...`);
-
-                    // Processa em lotes (batches de 400) para performance
-                    let count = 0;
-                    let batch = window.writeBatch(window.db);
-
-                    for (const row of rows) {
-                        const newDocRef = window.doc(window.clientesRef);
-                        batch.set(newDocRef, {
-                            ...row,
-                            criadoEm: new Date().toISOString()
-                        });
-                        count++;
-
-                        if (count % 400 === 0) {
-                            await batch.commit();
-                            batch = window.writeBatch(window.db);
-                        }
-                    }
-
-                    if (count % 400 !== 0) {
-                        await batch.commit();
-                    }
-
-                    showToast(`${rows.length} clientes importados com sucesso!`);
-                } catch (err) {
-                    console.error("Erro na importação:", err);
-                    alert("Ocorreu um erro ao importar a planilha. Verifique as regras do Firebase.");
-                }
-            };
-
-            reader.readAsArrayBuffer(file);
-        }
-
         async function salvarNovoCliente(e) {
             e.preventDefault();
             const btn = document.getElementById('btnSalvar');
@@ -463,9 +415,9 @@
                 "UF": document.getElementById('novoUF').value.trim().toUpperCase(),
                 "Telefone": document.getElementById('novoTel').value.trim(),
                 "E-mail (NF-e)": document.getElementById('novoEmail').value.trim(),
-                "Vendedor:": document.getElementById('novoVendedor').value.trim(),
-                "CPF/CNPJ Vendedor:": document.getElementById('novoVendedorDoc').value.trim(),
-                "Telefone Vendedor:": document.getElementById('novoVendedorTel').value.trim(),
+                "Vendedor::": document.getElementById('novoVendedor').value.trim(),
+                "CPF/CNPJ Vendedor::": document.getElementById('novoVendedorDoc').value.trim(),
+                "Telefone Vendedor::": document.getElementById('novoVendedorTel').value.trim(),
                 "criadoEm": new Date().toISOString()
             };
 
@@ -499,20 +451,20 @@
             const content = document.getElementById('modalContent');
 
             content.innerHTML = `
-                <h3 class="text-xl font-bold text-slate-900 mb-1">${row[COL_NOME] || 'Sem Nome'}</h3>
-                <p class="text-xs text-slate-400 font-mono mb-6">${row[COL_DOC] || '-'}</p>
+                <h3 class="text-xl font-bold text-slate-900 mb-1">${getVal(row, ['Nome', 'nome']) || 'Sem Nome'}</h3>
+                <p class="text-xs text-slate-400 font-mono mb-6">${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}</p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div class="bg-slate-50 p-4 rounded-xl sm:col-span-2 border border-slate-100 flex flex-col gap-2">
                         <span class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Vendedor / Representante</span>
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                            <span class="font-bold text-blue-700 text-lg">${row['Vendedor:'] || row['Vendedor'] || 'Não informado'}</span>
+                            <span class="font-bold text-blue-700 text-lg">${getVendedor(row) || 'Não informado'}</span>
                             <div class="flex flex-wrap items-center gap-2">
                                 <span class="text-xs font-mono bg-white px-2.5 py-1 rounded-md border border-slate-200 text-slate-600 shadow-sm">
-                                    <strong class="text-slate-400 font-sans">CPF/CNPJ:</strong> ${row['CPF/CNPJ Vendedor:'] || row['CPF/CNPJ Vendedor'] || '-'}
+                                    <strong class="text-slate-400 font-sans">CPF/CNPJ:</strong> ${getVendedorDoc(row) || '-'}
                                 </span>
                                 <span class="text-xs bg-white px-2.5 py-1 rounded-md border border-slate-200 text-slate-600 shadow-sm">
-                                    <strong class="text-slate-400">Tel:</strong> ${row['Telefone Vendedor:'] || row['Telefone Vendedor'] || '-'}
+                                    <strong class="text-slate-400">Tel:</strong> ${getVendedorTel(row) || '-'}
                                 </span>
                             </div>
                         </div>
@@ -520,27 +472,27 @@
 
                     <div class="bg-slate-50 p-3 rounded-xl">
                         <span class="block text-xs font-semibold text-slate-400 uppercase">Localização</span>
-                        <span class="font-medium text-slate-800">${row[COL_CIDADE] || '-'} / ${row[COL_UF] || '-'}</span>
+                        <span class="font-medium text-slate-800">${getVal(row, ['Cidade', 'cidade']) || '-'} / ${getVal(row, ['UF', 'uf']) || '-'}</span>
                     </div>
 
                     <div class="bg-slate-50 p-3 rounded-xl">
                         <span class="block text-xs font-semibold text-slate-400 uppercase">CEP</span>
-                        <span class="text-slate-800 font-mono">${row[COL_CEP] || '-'}</span>
+                        <span class="text-slate-800 font-mono">${getVal(row, ['CEP', 'cep']) || '-'}</span>
                     </div>
 
                     <div class="bg-slate-50 p-3 rounded-xl sm:col-span-2">
                         <span class="block text-xs font-semibold text-slate-400 uppercase">Endereço Completo</span>
-                        <span class="text-slate-800">${row[COL_END] || '-'}</span>
+                        <span class="text-slate-800">${getVal(row, ['Endereço', 'Endereco', 'endereco']) || '-'}</span>
                     </div>
 
                     <div class="bg-slate-50 p-3 rounded-xl">
                         <span class="block text-xs font-semibold text-slate-400 uppercase">Telefone Cliente</span>
-                        <span class="text-slate-800">${row[COL_TEL] || '-'}</span>
+                        <span class="text-slate-800">${getVal(row, ['Telefone', 'telefone']) || '-'}</span>
                     </div>
 
                     <div class="bg-slate-50 p-3 rounded-xl">
                         <span class="block text-xs font-semibold text-slate-400 uppercase">E-mail (NF-e)</span>
-                        <span class="text-slate-800 break-all">${row[COL_EMAIL] || '-'}</span>
+                        <span class="text-slate-800 break-all">${getVal(row, ['E-mail (NF-e)', 'Email', 'email']) || '-'}</span>
                     </div>
                 </div>
             `;
@@ -557,14 +509,14 @@
             const row = currentFilteredData[idx];
             if (!row) return;
 
-            const text = `Cliente: ${row[COL_NOME] || '-'}
-CPF/CNPJ: ${row[COL_DOC] || '-'}
-Endereço: ${row[COL_END] || '-'} - ${row[COL_CIDADE] || '-'}/${row[COL_UF] || '-'} (CEP: ${row[COL_CEP] || '-'})
-Telefone: ${row[COL_TEL] || '-'}
-E-mail: ${row[COL_EMAIL] || '-'}
-Vendedor: ${row['Vendedor:'] || row['Vendedor'] || '-'}
-CPF/CNPJ Vendedor: ${row['CPF/CNPJ Vendedor:'] || row['CPF/CNPJ Vendedor'] || '-'}
-Tel. Vendedor: ${row['Telefone Vendedor:'] || row['Telefone Vendedor'] || '-'}`.trim();
+            const text = `Cliente: ${getVal(row, ['Nome', 'nome']) || '-'}
+CPF/CNPJ: ${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}
+Endereço: ${getVal(row, ['Endereço', 'Endereco']) || '-'} - ${getVal(row, ['Cidade', 'cidade']) || '-'}/${getVal(row, ['UF', 'uf']) || '-'} (CEP: ${getVal(row, ['CEP', 'cep']) || '-'})
+Telefone: ${getVal(row, ['Telefone', 'telefone']) || '-'}
+E-mail: ${getVal(row, ['E-mail (NF-e)', 'Email']) || '-'}
+Vendedor: ${getVendedor(row) || '-'}
+CPF/CNPJ Vendedor: ${getVendedorDoc(row) || '-'}
+Tel. Vendedor: ${getVendedorTel(row) || '-'}`.trim();
 
             navigator.clipboard.writeText(text).then(() => showToast("Dados copiados!"));
         }
