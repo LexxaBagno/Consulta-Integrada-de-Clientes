@@ -48,7 +48,6 @@
             document.getElementById('counter').textContent = "Erro na conexão com o banco de dados.";
         });
 
-        // Função para importar o Excel direto para o Firebase mantendo Ativo/Inativo
         window.importarExcelParaFirebase = async function(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -63,9 +62,8 @@
                     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(firstSheet);
 
-                    alert(`Lendo ${rows.length} registros da planilha. Iniciando envio para a nuvem... (Isso pode levar alguns segundos)`);
+                    alert(`Lendo ${rows.length} registros da planilha. Iniciando envio para a nuvem...`);
 
-                    // Processar em lotes de 400 (limite do Firestore batch é 500)
                     let batch = writeBatch(db);
                     let count = 0;
                     let totalEnviados = 0;
@@ -135,7 +133,6 @@
             </div>
             
             <div class="flex flex-wrap gap-2">
-                <!-- Botão para importar o Excel direto para o Firebase -->
                 <label class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition cursor-pointer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                     Importar Excel p/ Firebase
@@ -172,13 +169,23 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 pt-2">
                     <div>
                         <label for="filterStatus" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Status</label>
                         <select id="filterStatus" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                            <option value="">Todos (Ativos e Inativos)</option>
+                            <option value="">Todos (Ativos/Inativos)</option>
                             <option value="ATIVO">Somente Ativos</option>
                             <option value="INATIVO">Somente Inativos</option>
+                        </select>
+                    </div>
+
+                    <!-- NOVO FILTRO PF / PJ -->
+                    <div>
+                        <label for="filterTipo" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Tipo (PF / PJ)</label>
+                        <select id="filterTipo" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                            <option value="">Todos (PF e PJ)</option>
+                            <option value="PJ">Pessoa Jurídica (PJ)</option>
+                            <option value="PF">Pessoa Física (PF)</option>
                         </select>
                     </div>
 
@@ -190,7 +197,7 @@
                     </div>
 
                     <div>
-                        <label for="filterVendedor" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Vendedor / Representante</label>
+                        <label for="filterVendedor" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Vendedor</label>
                         <select id="filterVendedor" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                             <option value="">Todos os Vendedores</option>
                         </select>
@@ -213,7 +220,7 @@
                     <table class="w-full text-left border-collapse">
                         <thead class="bg-slate-50 sticky top-0 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500 z-10">
                             <tr>
-                                <th class="p-4">Status / Cliente / CNPJ</th>
+                                <th class="p-4">Status / Cliente / Doc</th>
                                 <th class="p-4">Cidade / UF</th>
                                 <th class="p-4">Vendedor</th>
                                 <th class="p-4">Contato</th>
@@ -360,6 +367,19 @@
             return 'ATIVO';
         }
 
+        // Função para identificar se é PF ou PJ com base no documento
+        function getTipoCliente(row) {
+            const doc = String(getVal(row, ['CPF/CNPJ', 'cpf_cnpj', 'cpf', 'cnpj'])).trim();
+            const apenasNumeros = doc.replace(/\D/g, '');
+            // CNPJ costuma ter 14 dígitos, CPF 11 dígitos
+            if (apenasNumeros.length > 11) {
+                return 'PJ';
+            } else if (apenasNumeros.length > 0 && apenasNumeros.length <= 11) {
+                return 'PF';
+            }
+            return 'PJ'; // Padrão se não preenchido
+        }
+
         function getVendedor(row) {
             return getVal(row, ['Vendedor:', 'Vendedor::', 'Vendedor', 'vendedor']);
         }
@@ -415,12 +435,14 @@
         function filterData() {
             const globalQuery = normalizeStr(document.getElementById('globalSearch').value);
             const statusFilter = document.getElementById('filterStatus').value;
+            const tipoFilter = document.getElementById('filterTipo').value;
             const uf = normalizeStr(document.getElementById('filterUF').value);
             const vendedor = normalizeStr(document.getElementById('filterVendedor').value);
             const cidade = normalizeStr(document.getElementById('filterCidade').value);
 
             const filtered = window.rawData.filter(row => {
                 const rowStatus = getStatus(row);
+                const rowTipo = getTipoCliente(row);
                 const rowNome = normalizeStr(getVal(row, ['Nome', 'nome']));
                 const rowDoc = normalizeStr(getVal(row, ['CPF/CNPJ', 'cpf_cnpj', 'cpf', 'cnpj']));
                 const rowCidade = normalizeStr(getVal(row, ['Cidade', 'cidade']));
@@ -438,11 +460,12 @@
                     rowVendedor.includes(globalQuery);
 
                 const matchesStatus = !statusFilter || rowStatus === statusFilter;
+                const matchesTipo = !tipoFilter || rowTipo === tipoFilter;
                 const matchesUF = !uf || rowUF === uf;
                 const matchesVendedor = !vendedor || rowVendedor === vendedor;
                 const matchesCidade = !cidade || rowCidade.includes(cidade);
 
-                return matchesGlobal && matchesStatus && matchesUF && matchesVendedor && matchesCidade;
+                return matchesGlobal && matchesStatus && matchesTipo && matchesUF && matchesVendedor && matchesCidade;
             });
 
             renderTable(filtered);
@@ -464,10 +487,16 @@
 
             tbody.innerHTML = items.map((row, idx) => {
                 const status = getStatus(row);
+                const tipo = getTipoCliente(row);
                 const isAtivo = status === 'ATIVO';
+                
                 const statusTag = isAtivo 
                     ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">ATIVO</span>`
                     : `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">INATIVO</span>`;
+
+                const tipoTag = tipo === 'PJ'
+                    ? `<span class="bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] font-bold px-1.5 py-0.5 rounded">PJ</span>`
+                    : `<span class="bg-purple-50 text-purple-700 border border-purple-100 text-[10px] font-bold px-1.5 py-0.5 rounded">PF</span>`;
 
                 const tel = getVal(row, ['Telefone', 'telefone', 'Tel']);
                 const telClean = String(tel || '').replace(/\D/g, '');
@@ -480,6 +509,7 @@
                     <td class="p-4">
                         <div class="flex items-center gap-2 mb-1">
                             ${statusTag}
+                            ${tipoTag}
                             <span class="font-bold text-slate-900">${getVal(row, ['Nome', 'nome']) || '-'}</span>
                         </div>
                         <div class="text-xs text-slate-400 font-mono">${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}</div>
@@ -563,11 +593,15 @@
             const modal = document.getElementById('clientModal');
             const content = document.getElementById('modalContent');
             const status = getStatus(row);
+            const tipo = getTipoCliente(row);
 
             content.innerHTML = `
                 <div class="flex items-center gap-2 mb-2">
                     <span class="${status === 'ATIVO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'} text-xs font-bold px-2.5 py-1 rounded">
                         ${status}
+                    </span>
+                    <span class="bg-indigo-100 text-indigo-800 text-xs font-bold px-2.5 py-1 rounded">
+                        ${tipo === 'PJ' ? 'Pessoa Jurídica (PJ)' : 'Pessoa Física (PF)'}
                     </span>
                     <h3 class="text-xl font-bold text-slate-900">${getVal(row, ['Nome', 'nome']) || 'Sem Nome'}</h3>
                 </div>
@@ -628,7 +662,7 @@
             const row = currentFilteredData[idx];
             if (!row) return;
 
-            const text = `Status: ${getStatus(row)}
+            const text = `Status: ${getStatus(row)} (${getTipoCliente(row)})
 Cliente: ${getVal(row, ['Nome', 'nome']) || '-'}
 CPF/CNPJ: ${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}
 Endereço: ${getVal(row, ['Endereço', 'Endereco']) || '-'} - ${getVal(row, ['Cidade', 'cidade']) || '-'}/${getVal(row, ['UF', 'uf']) || '-'} (CEP: ${getVal(row, ['CEP', 'cep']) || '-'}
@@ -656,6 +690,7 @@ Tel. Vendedor: ${getVendedorTel(row) || '-'}`.trim();
         function setupEvents() {
             document.getElementById('globalSearch').addEventListener('input', filterData);
             document.getElementById('filterStatus').addEventListener('change', filterData);
+            document.getElementById('filterTipo').addEventListener('change', filterData);
             document.getElementById('filterUF').addEventListener('change', filterData);
             document.getElementById('filterVendedor').addEventListener('change', filterData);
             document.getElementById('filterCidade').addEventListener('input', filterData);
@@ -663,6 +698,7 @@ Tel. Vendedor: ${getVendedorTel(row) || '-'}`.trim();
             document.getElementById('btnClear').addEventListener('click', () => {
                 document.getElementById('globalSearch').value = '';
                 document.getElementById('filterStatus').value = '';
+                document.getElementById('filterTipo').value = '';
                 document.getElementById('filterUF').value = '';
                 document.getElementById('filterVendedor').value = '';
                 document.getElementById('filterCidade').value = '';
