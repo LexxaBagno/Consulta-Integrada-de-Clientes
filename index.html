@@ -82,8 +82,8 @@
                             "Telefone": row["Telefone"] || row["telefone"] || "",
                             "E-mail (NF-e)": row["E-mail (NF-e)"] || row["Email"] || "",
                             "Vendedor:": row["Vendedor:"] || row["Vendedor"] || "",
-                            "CPF/CNPJ Vendedor:": row["CPF/CNPJ Vendedor:"] || "",
-                            "Telefone Vendedor:": row["Telefone Vendedor:"] || ""
+                            "cpfCnpjVendedor": row["CPF/CNPJ Vendedor:"] || row["CPF/CNPJ Vendedor"] || "",
+                            "telefoneVendedor": row["Telefone Vendedor:"] || row["Telefone Vendedor"] || ""
                         });
 
                         count++;
@@ -389,11 +389,11 @@
         }
 
         function getVendedorDoc(row) {
-            return getVal(row, ['CPF/CNPJ Vendedor:', 'CPF/CNPJ Vendedor::', 'CPF/CNPJ Vendedor']);
+            return getVal(row, ['cpfCnpjVendedor', 'CPF/CNPJ Vendedor:', 'CPF/CNPJ Vendedor::', 'CPF/CNPJ Vendedor']);
         }
 
         function getVendedorTel(row) {
-            return getVal(row, ['Telefone Vendedor:', 'Telefone Vendedor::', 'Telefone Vendedor']);
+            return getVal(row, ['telefoneVendedor', 'Telefone Vendedor:', 'Telefone Vendedor::', 'Telefone Vendedor']);
         }
 
         function normalizeStr(str) {
@@ -598,8 +598,8 @@
                 "Telefone": document.getElementById('novoTel').value.trim(),
                 "E-mail (NF-e)": document.getElementById('novoEmail').value.trim(),
                 "Vendedor:": document.getElementById('novoVendedor').value.trim(),
-                "CPF/CNPJ Vendedor:": document.getElementById('novoVendedorDoc').value.trim(),
-                "Telefone Vendedor:": document.getElementById('novoVendedorTel').value.trim(),
+                "cpfCnpjVendedor": document.getElementById('novoVendedorDoc').value.trim(),
+                "telefoneVendedor": document.getElementById('novoVendedorTel').value.trim(),
                 "atualizadoEm": new Date().toISOString()
             };
 
