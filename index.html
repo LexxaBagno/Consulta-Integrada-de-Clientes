@@ -74,7 +74,7 @@
                         batch.set(docRef, {
                             "Ativo": row["Ativo"] || row["ativo"] || row["Status"] || "ATIVO",
                             "Nome": row["Nome"] || row["nome"] || "",
-                            "CPF/CNPJ": row["CPF/CNPJ"] || row["cpf_cnpj"] || "",
+                            "cpfCnpj": row["CPF/CNPJ"] || row["cpf_cnpj"] || row["cpfCnpj"] || "",
                             "Endereço": row["Endereço"] || row["Endereco"] || "",
                             "Cidade": row["Cidade"] || row["cidade"] || "",
                             "UF": row["UF"] || row["uf"] || "",
@@ -374,7 +374,7 @@
         }
 
         function getTipoCliente(row) {
-            const doc = String(getVal(row, ['CPF/CNPJ', 'cpf_cnpj', 'cpf', 'cnpj'])).trim();
+            const doc = String(getVal(row, ['cpfCnpj', 'CPF/CNPJ', 'cpf_cnpj', 'cpf', 'cnpj'])).trim();
             const apenasNumeros = doc.replace(/\D/g, '');
             if (apenasNumeros.length > 11) {
                 return 'PJ';
@@ -448,7 +448,7 @@
                 const rowStatus = getStatus(row);
                 const rowTipo = getTipoCliente(row);
                 const rowNome = normalizeStr(getVal(row, ['Nome', 'nome']));
-                const rowDoc = normalizeStr(getVal(row, ['CPF/CNPJ', 'cpf_cnpj', 'cpf', 'cnpj']));
+                const rowDoc = normalizeStr(getVal(row, ['cpfCnpj', 'CPF/CNPJ', 'cpf_cnpj', 'cpf', 'cnpj']));
                 const rowCidade = normalizeStr(getVal(row, ['Cidade', 'cidade']));
                 const rowEnd = normalizeStr(getVal(row, ['Endereço', 'Endereco', 'endereco']));
                 const rowEmail = normalizeStr(getVal(row, ['E-mail (NF-e)', 'Email', 'email']));
@@ -516,7 +516,7 @@
                             ${tipoTag}
                             <span class="font-bold text-slate-900">${getVal(row, ['Nome', 'nome']) || '-'}</span>
                         </div>
-                        <div class="text-xs text-slate-400 font-mono">${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}</div>
+                        <div class="text-xs text-slate-400 font-mono">${getVal(row, ['cpfCnpj', 'CPF/CNPJ', 'cpf_cnpj']) || '-'}</div>
                     </td>
                     <td class="p-4">
                         <div class="font-medium text-slate-800">${getVal(row, ['Cidade', 'cidade']) || '-'}</div>
@@ -553,11 +553,10 @@
             const row = currentFilteredData[idx];
             if (!row) return;
 
-            // Preenche o formulário com os dados existentes
             document.getElementById('editClienteId').value = row.id || '';
             document.getElementById('novoStatus').value = getStatus(row);
             document.getElementById('novoNome').value = getVal(row, ['Nome', 'nome']);
-            document.getElementById('novoDoc').value = getVal(row, ['CPF/CNPJ', 'cpf_cnpj']);
+            document.getElementById('novoDoc').value = getVal(row, ['cpfCnpj', 'CPF/CNPJ', 'cpf_cnpj']);
             document.getElementById('novoEnd').value = getVal(row, ['Endereço', 'Endereco', 'endereco']);
             document.getElementById('novoCEP').value = getVal(row, ['CEP', 'cep']);
             document.getElementById('novoCidade').value = getVal(row, ['Cidade', 'cidade']);
@@ -568,12 +567,10 @@
             document.getElementById('novoVendedorDoc').value = getVendedorDoc(row);
             document.getElementById('novoVendedorTel').value = getVendedorTel(row);
 
-            // Altera o título e exibe botão de cancelar edição
             document.getElementById('formTitle').innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> Editando Cliente: ${getVal(row, ['Nome', 'nome'])}`;
             document.getElementById('btnCancelarEdicao').classList.remove('hidden');
             document.getElementById('btnSalvar').innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Salvar Alterações`;
 
-            // Abre a aba de cadastro
             switchTab('cadastro');
         }
 
@@ -593,7 +590,7 @@
             const dadosCliente = {
                 "Ativo": document.getElementById('novoStatus').value,
                 "Nome": document.getElementById('novoNome').value.trim(),
-                "CPF/CNPJ": document.getElementById('novoDoc').value.trim(),
+                "cpfCnpj": document.getElementById('novoDoc').value.trim(),
                 "Endereço": document.getElementById('novoEnd').value.trim(),
                 "CEP": document.getElementById('novoCEP').value.trim(),
                 "Cidade": document.getElementById('novoCidade').value.trim(),
@@ -608,14 +605,12 @@
 
             try {
                 if (clienteId) {
-                    // Modo Edição (Atualizar registro existente)
                     btn.disabled = true;
                     btn.textContent = "Atualizando...";
                     const docRef = window.doc(window.db, "clientes", clienteId);
                     await window.updateDoc(docRef, dadosCliente);
                     showToast("Cliente atualizado com sucesso!");
                 } else {
-                    // Modo Novo Cadastro
                     btn.disabled = true;
                     btn.textContent = "Salvando na Nuvem...";
                     dadosCliente["criadoEm"] = new Date().toISOString();
@@ -661,7 +656,7 @@
                     </span>
                     <h3 class="text-xl font-bold text-slate-900">${getVal(row, ['Nome', 'nome']) || 'Sem Nome'}</h3>
                 </div>
-                <p class="text-xs text-slate-400 font-mono mb-6">${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}</p>
+                <p class="text-xs text-slate-400 font-mono mb-6">${getVal(row, ['cpfCnpj', 'CPF/CNPJ', 'cpf_cnpj']) || '-'}</p>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div class="bg-slate-50 p-4 rounded-xl sm:col-span-2 border border-slate-100 flex flex-col gap-2">
@@ -727,7 +722,7 @@
 
             const text = `Status: ${getStatus(row)} (${getTipoCliente(row)})
 Cliente: ${getVal(row, ['Nome', 'nome']) || '-'}
-CPF/CNPJ: ${getVal(row, ['CPF/CNPJ', 'cpf_cnpj']) || '-'}
+CPF/CNPJ: ${getVal(row, ['cpfCnpj', 'CPF/CNPJ', 'cpf_cnpj']) || '-'}
 Endereço: ${getVal(row, ['Endereço', 'Endereco']) || '-'} - ${getVal(row, ['Cidade', 'cidade']) || '-'}/${getVal(row, ['UF', 'uf']) || '-'} (CEP: ${getVal(row, ['CEP', 'cep']) || '-'}
 Telefone: ${getVal(row, ['Telefone', 'telefone']) || '-'}
 E-mail: ${getVal(row, ['E-mail (NF-e)', 'Email']) || '-'}
