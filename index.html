@@ -12,7 +12,7 @@
     <!-- SDKs do Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, writeBatch, doc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, updateDoc, onSnapshot, query, writeBatch, doc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBNtNGpi8RfQ5Tj3rBWF2fYUMwxIvi0xTE",
@@ -31,6 +31,7 @@
         window.db = db;
         window.clientesRef = clientesRef;
         window.addDoc = addDoc;
+        window.updateDoc = updateDoc;
         window.writeBatch = writeBatch;
         window.doc = doc;
         window.getDocs = getDocs;
@@ -179,7 +180,6 @@
                         </select>
                     </div>
 
-                    <!-- NOVO FILTRO PF / PJ -->
                     <div>
                         <label for="filterTipo" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Tipo (PF / PJ)</label>
                         <select id="filterTipo" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
@@ -237,15 +237,21 @@
             </div>
         </div>
 
-        <!-- ABA CADASTRO -->
+        <!-- ABA CADASTRO / EDIÇÃO -->
         <div id="tabCadastro" class="hidden">
             <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200 max-w-4xl mx-auto">
-                <h2 class="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-blue-600"></span>
-                    Formulário de Cadastro na Nuvem
-                </h2>
+                <div class="flex items-center justify-between mb-6">
+                    <h2 id="formTitle" class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+                        Formulário de Cadastro na Nuvem
+                    </h2>
+                    <button type="button" id="btnCancelarEdicao" onclick="limparEvoluirModoCadastro()" class="hidden text-xs text-rose-600 hover:text-rose-800 font-semibold underline">
+                        Cancelar Edição
+                    </button>
+                </div>
 
-                <form id="formNovoCliente" onsubmit="salvarNovoCliente(event)" class="space-y-6">
+                <form id="formNovoCliente" onsubmit="salvarOuAtualizarCliente(event)" class="space-y-6">
+                    <input type="hidden" id="editClienteId" value="">
                     <div>
                         <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Informações do Cliente</h3>
                         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -367,17 +373,15 @@
             return 'ATIVO';
         }
 
-        // Função para identificar se é PF ou PJ com base no documento
         function getTipoCliente(row) {
             const doc = String(getVal(row, ['CPF/CNPJ', 'cpf_cnpj', 'cpf', 'cnpj'])).trim();
             const apenasNumeros = doc.replace(/\D/g, '');
-            // CNPJ costuma ter 14 dígitos, CPF 11 dígitos
             if (apenasNumeros.length > 11) {
                 return 'PJ';
             } else if (apenasNumeros.length > 0 && apenasNumeros.length <= 11) {
                 return 'PF';
             }
-            return 'PJ'; // Padrão se não preenchido
+            return 'PJ';
         }
 
         function getVendedor(row) {
@@ -533,6 +537,9 @@
                                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/></svg>
                                 </a>
                             ` : ''}
+                            <button onclick="carregarParaEdicao(${idx})" title="Editar Cliente" class="p-2 bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-lg transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </button>
                             <button onclick="copyClientInfo(${idx})" title="Copiar Dados" class="p-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2 2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                             </button>
@@ -542,13 +549,48 @@
             `}).join('');
         }
 
-        async function salvarNovoCliente(e) {
+        function carregarParaEdicao(idx) {
+            const row = currentFilteredData[idx];
+            if (!row) return;
+
+            // Preenche o formulário com os dados existentes
+            document.getElementById('editClienteId').value = row.id || '';
+            document.getElementById('novoStatus').value = getStatus(row);
+            document.getElementById('novoNome').value = getVal(row, ['Nome', 'nome']);
+            document.getElementById('novoDoc').value = getVal(row, ['CPF/CNPJ', 'cpf_cnpj']);
+            document.getElementById('novoEnd').value = getVal(row, ['Endereço', 'Endereco', 'endereco']);
+            document.getElementById('novoCEP').value = getVal(row, ['CEP', 'cep']);
+            document.getElementById('novoCidade').value = getVal(row, ['Cidade', 'cidade']);
+            document.getElementById('novoUF').value = getVal(row, ['UF', 'uf']);
+            document.getElementById('novoTel').value = getVal(row, ['Telefone', 'telefone']);
+            document.getElementById('novoEmail').value = getVal(row, ['E-mail (NF-e)', 'Email', 'email']);
+            document.getElementById('novoVendedor').value = getVendedor(row);
+            document.getElementById('novoVendedorDoc').value = getVendedorDoc(row);
+            document.getElementById('novoVendedorTel').value = getVendedorTel(row);
+
+            // Altera o título e exibe botão de cancelar edição
+            document.getElementById('formTitle').innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span> Editando Cliente: ${getVal(row, ['Nome', 'nome'])}`;
+            document.getElementById('btnCancelarEdicao').classList.remove('hidden');
+            document.getElementById('btnSalvar').innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Salvar Alterações`;
+
+            // Abre a aba de cadastro
+            switchTab('cadastro');
+        }
+
+        function limparEvoluirModoCadastro() {
+            document.getElementById('formNovoCliente').reset();
+            document.getElementById('editClienteId').value = '';
+            document.getElementById('formTitle').innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-600"></span> Formulário de Cadastro na Nuvem`;
+            document.getElementById('btnCancelarEdicao').classList.add('hidden');
+            document.getElementById('btnSalvar').innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Salvar na Nuvem`;
+        }
+
+        async function salvarOuAtualizarCliente(e) {
             e.preventDefault();
             const btn = document.getElementById('btnSalvar');
-            btn.disabled = true;
-            btn.textContent = "Salvando na Nuvem...";
-
-            const novoObj = {
+            const clienteId = document.getElementById('editClienteId').value;
+            
+            const dadosCliente = {
                 "Ativo": document.getElementById('novoStatus').value,
                 "Nome": document.getElementById('novoNome').value.trim(),
                 "CPF/CNPJ": document.getElementById('novoDoc').value.trim(),
@@ -561,17 +603,31 @@
                 "Vendedor:": document.getElementById('novoVendedor').value.trim(),
                 "CPF/CNPJ Vendedor:": document.getElementById('novoVendedorDoc').value.trim(),
                 "Telefone Vendedor:": document.getElementById('novoVendedorTel').value.trim(),
-                "criadoEm": new Date().toISOString()
+                "atualizadoEm": new Date().toISOString()
             };
 
             try {
-                await window.addDoc(window.clientesRef, novoObj);
-                document.getElementById('formNovoCliente').reset();
-                showToast("Cliente salvo na Nuvem!");
+                if (clienteId) {
+                    // Modo Edição (Atualizar registro existente)
+                    btn.disabled = true;
+                    btn.textContent = "Atualizando...";
+                    const docRef = window.doc(window.db, "clientes", clienteId);
+                    await window.updateDoc(docRef, dadosCliente);
+                    showToast("Cliente atualizado com sucesso!");
+                } else {
+                    // Modo Novo Cadastro
+                    btn.disabled = true;
+                    btn.textContent = "Salvando na Nuvem...";
+                    dadosCliente["criadoEm"] = new Date().toISOString();
+                    await window.addDoc(window.clientesRef, dadosCliente);
+                    showToast("Cliente salvo na Nuvem!");
+                }
+
+                limparEvoluirModoCadastro();
                 switchTab('consulta');
             } catch (err) {
                 console.error(err);
-                alert("Erro ao salvar no banco.");
+                alert("Erro ao salvar no banco: " + err.message);
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Salvar na Nuvem`;
@@ -647,6 +703,13 @@
                         <span class="block text-xs font-semibold text-slate-400 uppercase">E-mail (NF-e)</span>
                         <span class="text-slate-800 break-all">${getVal(row, ['E-mail (NF-e)', 'Email', 'email']) || '-'}</span>
                     </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-2">
+                    <button onclick="closeModal(); carregarParaEdicao(${idx})" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                        Editar este Cliente
+                    </button>
                 </div>
             `;
 
